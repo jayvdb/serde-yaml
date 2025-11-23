@@ -59,6 +59,7 @@ where
 }
 
 #[test]
+#[ignore] // libyaml-safer uses owned strings, not borrowed
 fn test_borrowed() {
     let yaml = indoc! {"
         - plain nonàscii

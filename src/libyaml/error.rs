@@ -1,83 +1,44 @@
-use crate::libyaml::cstr::CStr;
+use libyaml_safer as safer;
 use std::fmt::{self, Debug, Display};
-use std::mem::MaybeUninit;
-use std::ptr::NonNull;
-use unsafe_libyaml as sys;
 
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 pub(crate) struct Error {
-    kind: sys::yaml_error_type_t,
-    problem: CStr<'static>,
-    problem_offset: u64,
-    problem_mark: Mark,
-    context: Option<CStr<'static>>,
-    context_mark: Mark,
+    message: String,
+    mark: Mark,
 }
 
 impl Error {
-    pub unsafe fn parse_error(parser: *const sys::yaml_parser_t) -> Self {
-        Error {
-            kind: unsafe { (&(*parser)).error },
-            problem: match NonNull::new(unsafe { (&(*parser)).problem as *mut _ }) {
-                Some(problem) => unsafe { CStr::from_ptr(problem) },
-                None => CStr::from_bytes_with_nul(b"libyaml parser failed but there is no error\0"),
-            },
-            problem_offset: unsafe { (&(*parser)).problem_offset },
-            problem_mark: Mark {
-                sys: unsafe { (&(*parser)).problem_mark },
-            },
-            context: match NonNull::new(unsafe { (&(*parser)).context as *mut _ }) {
-                Some(context) => Some(unsafe { CStr::from_ptr(context) }),
-                None => None,
-            },
-            context_mark: Mark {
-                sys: unsafe { (&(*parser)).context_mark },
-            },
-        }
-    }
+    pub fn from_safer_error(error: safer::Error) -> Self {
+        let error_string = error.to_string();
 
-    pub unsafe fn emit_error(emitter: *const sys::yaml_emitter_t) -> Self {
+        // Parse the safer error format to extract components and reformat to match old unsafe-libyaml format
+        // New format: "Scanner error: line 2 column 1: found character... while scanning... (line 2 column 1)"
+        // Old format: "found character... at line 2 column 1, while scanning..."
+        let message = if let Some(reformatted) = reformat_error_message(&error_string) {
+            reformatted
+        } else {
+            error_string
+        };
+
         Error {
-            kind: unsafe { (&(*emitter)).error },
-            problem: match NonNull::new(unsafe { (&(*emitter)).problem as *mut _ }) {
-                Some(problem) => unsafe { CStr::from_ptr(problem) },
-                None => {
-                    CStr::from_bytes_with_nul(b"libyaml emitter failed but there is no error\0")
-                }
-            },
-            problem_offset: 0,
-            problem_mark: Mark {
-                sys: unsafe { MaybeUninit::<sys::yaml_mark_t>::zeroed().assume_init() },
-            },
-            context: None,
-            context_mark: Mark {
-                sys: unsafe { MaybeUninit::<sys::yaml_mark_t>::zeroed().assume_init() },
-            },
+            message,
+            mark: Mark::default(),
         }
     }
 
     pub fn mark(&self) -> Mark {
-        self.problem_mark
+        self.mark
     }
 }
 
 impl Display for Error {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        write!(formatter, "{}", self.problem)?;
-        if self.problem_mark.sys.line != 0 || self.problem_mark.sys.column != 0 {
-            write!(formatter, " at {}", self.problem_mark)?;
-        } else if self.problem_offset != 0 {
-            write!(formatter, " at position {}", self.problem_offset)?;
-        }
-        if let Some(context) = &self.context {
-            write!(formatter, ", {}", context)?;
-            if (self.context_mark.sys.line != 0 || self.context_mark.sys.column != 0)
-                && (self.context_mark.sys.line != self.problem_mark.sys.line
-                    || self.context_mark.sys.column != self.problem_mark.sys.column)
-            {
-                write!(formatter, " at {}", self.context_mark)?;
-            }
+        write!(formatter, "{}", self.message)?;
+        if self.mark.line != 0 || self.mark.column != 0 {
+            write!(formatter, " at {}", self.mark)?;
+        } else if self.mark.index != 0 {
+            write!(formatter, " at position {}", self.mark.index)?;
         }
         Ok(())
     }
@@ -86,64 +47,56 @@ impl Display for Error {
 impl Debug for Error {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         let mut formatter = formatter.debug_struct("Error");
-        if let Some(kind) = match self.kind {
-            sys::YAML_MEMORY_ERROR => Some("MEMORY"),
-            sys::YAML_READER_ERROR => Some("READER"),
-            sys::YAML_SCANNER_ERROR => Some("SCANNER"),
-            sys::YAML_PARSER_ERROR => Some("PARSER"),
-            sys::YAML_COMPOSER_ERROR => Some("COMPOSER"),
-            sys::YAML_WRITER_ERROR => Some("WRITER"),
-            sys::YAML_EMITTER_ERROR => Some("EMITTER"),
-            _ => None,
-        } {
-            formatter.field("kind", &format_args!("{}", kind));
-        }
-        formatter.field("problem", &self.problem);
-        if self.problem_mark.sys.line != 0 || self.problem_mark.sys.column != 0 {
-            formatter.field("problem_mark", &self.problem_mark);
-        } else if self.problem_offset != 0 {
-            formatter.field("problem_offset", &self.problem_offset);
-        }
-        if let Some(context) = &self.context {
-            formatter.field("context", context);
-            if self.context_mark.sys.line != 0 || self.context_mark.sys.column != 0 {
-                formatter.field("context_mark", &self.context_mark);
-            }
+        formatter.field("message", &self.message);
+        if self.mark.line != 0 || self.mark.column != 0 {
+            formatter.field("mark", &self.mark);
+        } else if self.mark.index != 0 {
+            formatter.field("index", &self.mark.index);
         }
         formatter.finish()
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub(crate) struct Mark {
-    pub(super) sys: sys::yaml_mark_t,
+    index: usize,
+    line: usize,
+    column: usize,
 }
 
 impl Mark {
+    pub fn from_safer_mark(mark: safer::Mark) -> Self {
+        Self {
+            index: mark.index as usize,
+            line: mark.line as usize,
+            column: mark.column as usize,
+        }
+    }
+
     pub fn index(&self) -> u64 {
-        self.sys.index
+        self.index as u64
     }
 
     pub fn line(&self) -> u64 {
-        self.sys.line
+        self.line as u64
     }
 
     pub fn column(&self) -> u64 {
-        self.sys.column
+        self.column as u64
     }
 }
 
 impl Display for Mark {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        if self.sys.line != 0 || self.sys.column != 0 {
+        if self.line != 0 || self.column != 0 {
             write!(
                 formatter,
                 "line {} column {}",
-                self.sys.line + 1,
-                self.sys.column + 1,
+                self.line + 1,
+                self.column + 1,
             )
         } else {
-            write!(formatter, "position {}", self.sys.index)
+            write!(formatter, "position {}", self.index)
         }
     }
 }
@@ -151,12 +104,46 @@ impl Display for Mark {
 impl Debug for Mark {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
         let mut formatter = formatter.debug_struct("Mark");
-        if self.sys.line != 0 || self.sys.column != 0 {
-            formatter.field("line", &(self.sys.line + 1));
-            formatter.field("column", &(self.sys.column + 1));
+        if self.line != 0 || self.column != 0 {
+            formatter.field("line", &(self.line + 1));
+            formatter.field("column", &(self.column + 1));
         } else {
-            formatter.field("index", &self.sys.index);
+            formatter.field("index", &self.index);
         }
         formatter.finish()
     }
+}
+
+/// Reformat libyaml-safer error messages to match the old unsafe-libyaml format
+///
+/// New format: "Scanner error: line 2 column 1: found character... while scanning... (line 2 column 1)"
+/// Old format: "found character... at line 2 column 1, while scanning..."
+fn reformat_error_message(error_msg: &str) -> Option<String> {
+    // Extract position from "Error type: line X column Y: message (line X column Y)"
+    let colon_pos = error_msg.find(": line ")?;
+    let after_type = &error_msg[colon_pos + 2..];
+
+    let msg_start = after_type.find(": ")?;
+    let position = &after_type[..msg_start];
+    let rest = &after_type[msg_start + 2..];
+
+    // Remove redundant position suffix " (line X column Y)"
+    let message = rest
+        .rfind(" (line ")
+        .map_or(rest, |idx| &rest[..idx]);
+
+    // Insert position before " while..." or " (if..." clause, or append at end
+    if let Some(while_pos) = message.find(" while ") {
+        let before = &message[..while_pos];
+        let after = &message[while_pos + 1..];
+        return Some(format!("{} at {}, {}", before, position, after));
+    }
+
+    if let Some(if_pos) = message.find(" (if ") {
+        let before = &message[..if_pos];
+        let after = &message[if_pos + 1..];
+        return Some(format!("{} at {}, {}", before, position, after));
+    }
+
+    Some(format!("{} at {}", message, position))
 }

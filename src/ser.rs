@@ -10,7 +10,6 @@ use serde::de::Visitor;
 use serde::ser::{self, Serializer as _};
 use std::fmt::{self, Display};
 use std::io;
-use std::marker::PhantomData;
 use std::mem;
 use std::num;
 use std::str;
@@ -41,11 +40,10 @@ type Result<T, E = Error> = std::result::Result<T, E>;
 ///     Ok(())
 /// }
 /// ```
-pub struct Serializer<W> {
+pub struct Serializer<W: io::Write> {
     depth: usize,
     state: State,
-    emitter: Emitter<'static>,
-    writer: PhantomData<W>,
+    emitter: Emitter<W>,
 }
 
 enum State {
@@ -62,16 +60,12 @@ where
 {
     /// Creates a new YAML serializer.
     pub fn new(writer: W) -> Self {
-        let mut emitter = Emitter::new({
-            let writer = Box::new(writer);
-            unsafe { mem::transmute::<Box<dyn io::Write>, Box<dyn io::Write>>(writer) }
-        });
+        let mut emitter = Emitter::new(writer, -1, 2);
         emitter.emit(Event::StreamStart).unwrap();
         Serializer {
             depth: 0,
             state: State::NothingInParticular,
             emitter,
-            writer: PhantomData,
         }
     }
 
@@ -86,8 +80,7 @@ where
     pub fn into_inner(mut self) -> Result<W> {
         self.emitter.emit(Event::StreamEnd)?;
         self.emitter.flush()?;
-        let writer = self.emitter.into_inner();
-        Ok(*unsafe { Box::from_raw(Box::into_raw(writer).cast::<W>()) })
+        Ok(self.emitter.into_inner()?)
     }
 
     fn emit_scalar(&mut self, mut scalar: Scalar) -> Result<()> {
@@ -166,7 +159,7 @@ where
     }
 }
 
-impl<'a, W> ser::Serializer for &'a mut Serializer<W>
+impl<W> ser::Serializer for &mut Serializer<W>
 where
     W: io::Write,
 {
@@ -308,7 +301,7 @@ where
     fn serialize_str(self, value: &str) -> Result<()> {
         struct InferScalarStyle;
 
-        impl<'de> Visitor<'de> for InferScalarStyle {
+        impl Visitor<'_> for InferScalarStyle {
             type Value = ScalarStyle;
 
             fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
@@ -358,7 +351,6 @@ where
             let result = crate::de::visit_untagged_scalar(
                 InferScalarStyle,
                 value,
-                None,
                 libyaml::parser::ScalarStyle::Plain,
             );
             result.unwrap_or(ScalarStyle::Any)
@@ -523,7 +515,7 @@ where
     }
 }
 
-impl<'a, W> ser::SerializeSeq for &'a mut Serializer<W>
+impl<W> ser::SerializeSeq for &mut Serializer<W>
 where
     W: io::Write,
 {
@@ -542,7 +534,7 @@ where
     }
 }
 
-impl<'a, W> ser::SerializeTuple for &'a mut Serializer<W>
+impl<W> ser::SerializeTuple for &mut Serializer<W>
 where
     W: io::Write,
 {
@@ -561,7 +553,7 @@ where
     }
 }
 
-impl<'a, W> ser::SerializeTupleStruct for &'a mut Serializer<W>
+impl<W> ser::SerializeTupleStruct for &mut Serializer<W>
 where
     W: io::Write,
 {
@@ -580,7 +572,7 @@ where
     }
 }
 
-impl<'a, W> ser::SerializeTupleVariant for &'a mut Serializer<W>
+impl<W> ser::SerializeTupleVariant for &mut Serializer<W>
 where
     W: io::Write,
 {
@@ -599,7 +591,7 @@ where
     }
 }
 
-impl<'a, W> ser::SerializeMap for &'a mut Serializer<W>
+impl<W> ser::SerializeMap for &mut Serializer<W>
 where
     W: io::Write,
 {
@@ -647,7 +639,7 @@ where
     }
 }
 
-impl<'a, W> ser::SerializeStruct for &'a mut Serializer<W>
+impl<W> ser::SerializeStruct for &mut Serializer<W>
 where
     W: io::Write,
 {
@@ -667,7 +659,7 @@ where
     }
 }
 
-impl<'a, W> ser::SerializeStructVariant for &'a mut Serializer<W>
+impl<W> ser::SerializeStructVariant for &mut Serializer<W>
 where
     W: io::Write,
 {

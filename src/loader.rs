@@ -11,8 +11,8 @@ pub(crate) struct Loader<'input> {
     document_count: usize,
 }
 
-pub(crate) struct Document<'input> {
-    pub events: Vec<(Event<'input>, Mark)>,
+pub(crate) struct Document {
+    pub events: Vec<(Event, Mark)>,
     pub error: Option<Arc<ErrorImpl>>,
     /// Map from alias id to index in events.
     pub aliases: BTreeMap<usize, usize>,
@@ -40,7 +40,7 @@ impl<'input> Loader<'input> {
         })
     }
 
-    pub fn next_document(&mut self) -> Option<Document<'input>> {
+    pub fn next_document(&mut self) -> Option<Document> {
         let parser = match &mut self.parser {
             Some(parser) => parser,
             None => return None,

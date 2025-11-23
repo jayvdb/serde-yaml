@@ -10,7 +10,7 @@ cargo-fuzz = true
 
 [dependencies]
 libfuzzer-sys = "0.4"
-serde_yaml = { path = ".." }
+serde_yaml = { path = "..", package = "serde_yaml_nu" }
 
 [[bin]]
 name = "fuzz_from_slice"

@@ -1,4 +1,3 @@
-use crate::libyaml::cstr;
 use std::fmt::{self, Debug};
 use std::ops::Deref;
 
@@ -33,6 +32,6 @@ impl Deref for Tag {
 
 impl Debug for Tag {
     fn fmt(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        cstr::debug_lossy(&self.0, formatter)
+        write!(formatter, "{:?}", String::from_utf8_lossy(&self.0))
     }
 }
