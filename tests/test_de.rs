@@ -59,7 +59,7 @@ where
 }
 
 #[test]
-#[ignore] // libyaml-safer uses owned strings, not borrowed
+#[ignore = "libyaml-safer uses owned strings, not borrowed"]
 fn test_borrowed() {
     let yaml = indoc! {"
         - plain nonàscii
@@ -473,7 +473,7 @@ fn test_stateful() {
             D: serde::de::Deserializer<'de>,
         {
             struct Visitor(i64);
-            impl<'de> serde::de::Visitor<'de> for Visitor {
+            impl serde::de::Visitor<'_> for Visitor {
                 type Value = i64;
 
                 fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {

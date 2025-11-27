@@ -12,7 +12,7 @@ pub(crate) struct Emitter<W>
 where
     W: io::Write,
 {
-    events: Vec<Event<'static>>,
+    events: Vec<Event>,
     buffer: Vec<u8>,
     last_flush_len: usize,
     writer: Option<W>,
@@ -21,12 +21,12 @@ where
 }
 
 #[derive(Debug)]
-pub(crate) enum Event<'a> {
+pub(crate) enum Event {
     StreamStart,
     StreamEnd,
     DocumentStart,
     DocumentEnd,
-    Scalar(Scalar<'a>),
+    Scalar(Scalar),
     SequenceStart(Sequence),
     SequenceEnd,
     MappingStart(Mapping),
@@ -34,9 +34,9 @@ pub(crate) enum Event<'a> {
 }
 
 #[derive(Debug)]
-pub(crate) struct Scalar<'a> {
+pub(crate) struct Scalar {
     pub tag: Option<String>,
-    pub value: &'a str,
+    pub value: String,
     pub style: ScalarStyle,
 }
 
@@ -82,7 +82,7 @@ where
             Event::DocumentEnd => Event::DocumentEnd,
             Event::Scalar(s) => Event::Scalar(Scalar {
                 tag: s.tag,
-                value: Box::leak(s.value.to_owned().into_boxed_str()),
+                value: s.value.clone(),
                 style: s.style,
             }),
             Event::SequenceStart(seq) => Event::SequenceStart(seq),
@@ -159,7 +159,7 @@ fn convert_to_safer_event_ref(event: &Event) -> safer::Event {
             safer::Event::scalar(
                 None,
                 tag_ref,
-                scalar.value,
+                &scalar.value,
                 plain_implicit,
                 quoted_implicit,
                 style,

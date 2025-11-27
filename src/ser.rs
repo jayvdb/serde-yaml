@@ -177,7 +177,7 @@ where
     fn serialize_bool(self, v: bool) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: if v { "true" } else { "false" },
+            value: if v { "true" } else { "false" }.to_owned(),
             style: ScalarStyle::Plain,
         })
     }
@@ -185,7 +185,7 @@ where
     fn serialize_i8(self, v: i8) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: itoa::Buffer::new().format(v),
+            value: itoa::Buffer::new().format(v).to_string(),
             style: ScalarStyle::Plain,
         })
     }
@@ -193,7 +193,7 @@ where
     fn serialize_i16(self, v: i16) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: itoa::Buffer::new().format(v),
+            value: itoa::Buffer::new().format(v).to_string(),
             style: ScalarStyle::Plain,
         })
     }
@@ -201,7 +201,7 @@ where
     fn serialize_i32(self, v: i32) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: itoa::Buffer::new().format(v),
+            value: itoa::Buffer::new().format(v).to_string(),
             style: ScalarStyle::Plain,
         })
     }
@@ -209,7 +209,7 @@ where
     fn serialize_i64(self, v: i64) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: itoa::Buffer::new().format(v),
+            value: itoa::Buffer::new().format(v).to_string(),
             style: ScalarStyle::Plain,
         })
     }
@@ -217,7 +217,7 @@ where
     fn serialize_i128(self, v: i128) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: itoa::Buffer::new().format(v),
+            value: itoa::Buffer::new().format(v).to_owned(),
             style: ScalarStyle::Plain,
         })
     }
@@ -225,7 +225,7 @@ where
     fn serialize_u8(self, v: u8) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: itoa::Buffer::new().format(v),
+            value: itoa::Buffer::new().format(v).to_owned(),
             style: ScalarStyle::Plain,
         })
     }
@@ -233,7 +233,7 @@ where
     fn serialize_u16(self, v: u16) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: itoa::Buffer::new().format(v),
+            value: itoa::Buffer::new().format(v).to_string(),
             style: ScalarStyle::Plain,
         })
     }
@@ -241,7 +241,7 @@ where
     fn serialize_u32(self, v: u32) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: itoa::Buffer::new().format(v),
+            value: itoa::Buffer::new().format(v).to_string(),
             style: ScalarStyle::Plain,
         })
     }
@@ -249,7 +249,7 @@ where
     fn serialize_u64(self, v: u64) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: itoa::Buffer::new().format(v),
+            value: itoa::Buffer::new().format(v).to_string(),
             style: ScalarStyle::Plain,
         })
     }
@@ -257,7 +257,7 @@ where
     fn serialize_u128(self, v: u128) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: itoa::Buffer::new().format(v),
+            value: itoa::Buffer::new().format(v).to_string(),
             style: ScalarStyle::Plain,
         })
     }
@@ -267,10 +267,10 @@ where
         self.emit_scalar(Scalar {
             tag: None,
             value: match v.classify() {
-                num::FpCategory::Infinite if v.is_sign_positive() => ".inf",
-                num::FpCategory::Infinite => "-.inf",
-                num::FpCategory::Nan => ".nan",
-                _ => buffer.format_finite(v),
+                num::FpCategory::Infinite if v.is_sign_positive() => ".inf".to_owned(),
+                num::FpCategory::Infinite => "-.inf".to_owned(),
+                num::FpCategory::Nan => ".nan".to_owned(),
+                _ => buffer.format_finite(v).to_owned(),
             },
             style: ScalarStyle::Plain,
         })
@@ -281,10 +281,10 @@ where
         self.emit_scalar(Scalar {
             tag: None,
             value: match v.classify() {
-                num::FpCategory::Infinite if v.is_sign_positive() => ".inf",
-                num::FpCategory::Infinite => "-.inf",
-                num::FpCategory::Nan => ".nan",
-                _ => buffer.format_finite(v),
+                num::FpCategory::Infinite if v.is_sign_positive() => ".inf".to_owned(),
+                num::FpCategory::Infinite => "-.inf".to_owned(),
+                num::FpCategory::Nan => ".nan".to_owned(),
+                _ => buffer.format_finite(v).to_owned(),
             },
             style: ScalarStyle::Plain,
         })
@@ -293,7 +293,7 @@ where
     fn serialize_char(self, value: char) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: value.encode_utf8(&mut [0u8; 4]),
+            value: value.encode_utf8(&mut [0u8; 4]).to_owned(),
             style: ScalarStyle::SingleQuoted,
         })
     }
@@ -358,7 +358,7 @@ where
 
         self.emit_scalar(Scalar {
             tag: None,
-            value,
+            value: value.to_owned(),
             style,
         })
     }
@@ -370,7 +370,7 @@ where
     fn serialize_unit(self) -> Result<()> {
         self.emit_scalar(Scalar {
             tag: None,
-            value: "null",
+            value: "null".to_owned(),
             style: ScalarStyle::Plain,
         })
     }

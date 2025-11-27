@@ -56,9 +56,8 @@ pub(crate) enum ScalarStyle {
 impl<'input> Parser<'input> {
     pub fn new(input: Cow<'input, [u8]>) -> Parser<'input> {
         let mut inner = safer::Parser::new();
-        let input_slice: &'input [u8] = Box::leak(input.into_owned().into_boxed_slice());
-        let input_ref: &'input mut &'input [u8] = Box::leak(Box::new(input_slice));
-        inner.set_input_string(input_ref);
+        // Use owned input to avoid leaking memory when satisfying `'input` lifetime.
+        inner.set_input_owned(input.into_owned());
         inner.set_encoding(safer::Encoding::Utf8);
         Parser { inner }
     }
