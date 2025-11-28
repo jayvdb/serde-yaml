@@ -1,7 +1,6 @@
 [package]
 name = "serde_yaml_nu"
 version = "0.9.100"
-# authors = ["David Tolnay <dtolnay@gmail.com>"] # Provided versions up to 0.9.34.
 authors = ["John Vandenberg <jayvdb@gmail.com>"]
 categories = ["encoding", "parser-implementations"]
 description = "YAML data format for Serde (No Unsafe code)"
@@ -13,16 +12,19 @@ repository = "https://github.com/jayvdb/serde-yaml"
 rust-version = "1.64"
 
 [dependencies]
-indexmap = "2.2.1"
-itoa = "1.0"
-ryu = "1.0"
-serde = "1.0.195"
+indexmap = "=2.2.1"
+itoa = "=1.0"
+ryu = "=1.0"
+serde = "=1.0.171"
 libyaml-safer = { git = "https://github.com/jayvdb/unsafe-libyaml", branch = "owned-parser" }
+quote = "=1.0.33"
+proc-macro2 = "=1.0.66"
+syn = "=1.0.109"
 
 [dev-dependencies]
-anyhow = "1.0.79"
-indoc = "2.0"
-serde_derive = "1.0.195"
+anyhow = "=1.0.79"
+indoc = "=2.0"
+serde_derive = "=1.0.171"
 
 [lib]
 name = "serde_yaml"
